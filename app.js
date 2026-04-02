@@ -8,7 +8,7 @@ let selectedTone = 'Professional & Polished';
 let lastRawResponse = '';
 
 // ——— Backend base URL ———
-const BACKEND_URL = 'http://localhost:5000';
+const BACKEND_URL = 'https://linkedin-profile-enhancer.onrender.com';
 
 // ——— Tone selection ———
 document.querySelectorAll('.tone-btn').forEach(btn => {
