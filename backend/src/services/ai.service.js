@@ -3,9 +3,9 @@ const axios = require('axios');
 
 // ENV SETUP
 const API_KEYS = [
-  process.env.GEMINI_API_KEY_1 || 'AIzaSyD8GmISGgJFOIAx41opG6h0mAHiTkiEcRI',
-  process.env.GEMINI_API_KEY_2 || 'AIzaSyD8GmISGgJFOIAx41opG6h0mAHiTkiEcRI',
-  process.env.GEMINI_API_KEY_3 || 'AIzaSyD8GmISGgJFOIAx41opG6h0mAHiTkiEcRI'
+  process.env.GEMINI_API_KEY_1,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3
 ].filter(Boolean);
 
 let currentKeyIndex = 0;
