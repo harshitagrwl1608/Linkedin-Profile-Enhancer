@@ -153,14 +153,13 @@ async function callBackend(profileText, targetRole, tone) {
 }
 
 // ===== Legacy (unused — kept for reference) =====
-function buildPrompt(role, url, profile, tone) {
+function buildPrompt(role, profile, tone) {
   return `
 You are a world-class LinkedIn profile optimizer and tech recruiter with 10+ years of hiring experience at top companies including FAANG, unicorn startups, and Fortune 500 firms.
 
 Analyze the following LinkedIn profile for the target role and provide a deeply structured, brutally honest, and specific optimization report.
 
 TARGET ROLE: ${role}
-LINKEDIN URL: ${url || 'Not provided'}
 DESIRED TONE: ${tone}
 
 PROFILE CONTENT:
