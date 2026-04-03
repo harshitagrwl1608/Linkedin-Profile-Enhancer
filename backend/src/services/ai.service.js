@@ -2,14 +2,17 @@ require('dotenv').config();
 const axios = require('axios');
 
 // ENV SETUP
-const API_KEYS = [
-  process.env.GEMINI_API_KEY_1,
-  process.env.GEMINI_API_KEY_2,
-  process.env.GEMINI_API_KEY_3
-].filter(Boolean);
+const API_KEYS = Object.keys(process.env)
+  .filter(key => key.startsWith('GEMINI_API_KEY_'))
+  .sort((a, b) => {
+    const numA = parseInt(a.replace('GEMINI_API_KEY_', ''));
+    const numB = parseInt(b.replace('GEMINI_API_KEY_', ''));
+    return numA - numB;
+  })
+  .map(key => process.env[key])
+  .filter(Boolean);
 
 let currentKeyIndex = 0;
-let isProcessing = false;
 
 // 1. getApiKey()
 function getApiKey() {
@@ -28,15 +31,9 @@ function delay(ms) {
 
 // 3. callGemini(prompt)
 async function callGemini(prompt) {
-  if (isProcessing) {
-    throw new Error('Another request is currently processing. Please try again later.');
-  }
-
-  isProcessing = true;
   let attempts = 0;
 
-  try {
-    while (attempts < API_KEYS.length) {
+  while (attempts < API_KEYS.length) {
       // Add 1 second delay before EVERY API call
       await delay(1000);
       const apiKey = getApiKey();
@@ -84,9 +81,6 @@ async function callGemini(prompt) {
       }
     }
     throw new Error('All Gemini API keys failed due to 429 Rate Limits.');
-  } finally {
-    isProcessing = false; // Always clear the processing flag
-  }
 }
 
 // 4. parseResponse(text)
