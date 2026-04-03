@@ -157,8 +157,8 @@ async function fullReport(req, res, next) {
         weakAreas
       });
     } catch (aiErr) {
-      console.warn('[WARN] AI enhancement failed:', aiErr.message);
-      aiResult = buildFallbackAIResult(roleSlug, parsed, role);
+      console.error(`[ERROR] AI enhancement failed for role ${roleSlug}:`, aiErr.message);
+      aiResult = buildFallbackAIResult(roleSlug, parsed, role, overall);
     }
 
     const rankingChance = recResult.rankingChance.split(' — ')[0];
@@ -256,9 +256,9 @@ function buildFallbackActionPlan(missingKeywords, weakAreas, gaps) {
   return steps;
 }
 
-function buildFallbackAIResult(roleSlug, parsed, role) {
+function buildFallbackAIResult(roleSlug, parsed, role, baseScore = 0) {
   return {
-    score: 50,
+    score: baseScore,
     headline: `${role.displayName} | ${parsed.skills.slice(0,3).join(' · ')}`,
     about: `Experienced ${role.displayName} skilled in ${parsed.skills.slice(0,5).join(', ')}. Passionate about building scalable, high-quality software.`,
     experience: [

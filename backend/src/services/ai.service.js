@@ -12,16 +12,51 @@ const API_KEYS = Object.keys(process.env)
   .map(key => process.env[key])
   .filter(Boolean);
 
-let currentKeyIndex = 0;
+/**
+ * KeyManager handles rotation, shuffling and cooldown of API keys.
+ */
+class KeyManager {
+  constructor(keys) {
+    if (!keys || keys.length === 0) {
+      throw new Error('No API keys provided to KeyManager.');
+    }
+    this.entries = keys.map(k => ({ key: k, cooldownUntil: 0 }));
+    // Shuffle initial pool to distribute load across server instances
+    this.entries.sort(() => Math.random() - 0.5);
+    this.currentIndex = 0;
+  }
+
+  getNextKey() {
+    const now = Date.now();
+    const len = this.entries.length;
+    for (let i = 0; i < len; i++) {
+      const idx = (this.currentIndex + i) % len;
+      const entry = this.entries[idx];
+      if (now >= entry.cooldownUntil) {
+        this.currentIndex = (idx + 1) % len;
+        return entry.key;
+      }
+    }
+    console.warn('[KeyManager] All keys are in cooldown. Falling back.');
+    const entry = this.entries[this.currentIndex];
+    this.currentIndex = (this.currentIndex + 1) % len;
+    return entry.key;
+  }
+
+  markRateLimited(key) {
+    const entry = this.entries.find(e => e.key === key);
+    if (entry) {
+      entry.cooldownUntil = Date.now() + 60000; // 1 min cooldown
+      console.warn(`[KeyManager] Key ${key.substring(0, 10)}... cooldown for 60s`);
+    }
+  }
+}
+
+const keyManager = new KeyManager(API_KEYS);
 
 // 1. getApiKey()
 function getApiKey() {
-  if (API_KEYS.length === 0) {
-    throw new Error('No API keys configured.');
-  }
-  const key = API_KEYS[currentKeyIndex];
-  currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
-  return key;
+  return keyManager.getNextKey();
 }
 
 // 2. delay(ms)
@@ -39,7 +74,7 @@ async function callGemini(prompt) {
       const apiKey = getApiKey();
 
       try {
-        const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const response = await axios.post(
           url,
           {
@@ -71,8 +106,9 @@ async function callGemini(prompt) {
 
         // RETRY LOGIC (ONLY FOR 429)
         if (status === 429) {
-          console.warn(`[WARN] 429 Rate Limit hit. Waiting 1500ms and retrying with next API key. (${attempts}/${API_KEYS.length} attempts)`);
-          await delay(1500);
+          keyManager.markRateLimited(apiKey);
+          console.warn(`[WARN] 429 Rate Limit hit. Retrying with next available API key. (${attempts}/${API_KEYS.length} attempts)`);
+          await delay(1000);
           continue;
         } else {
           // Do NOT retry for other errors
@@ -209,8 +245,15 @@ Each:
 
 ---
 
-5. SKILLS:
-   6–10 relevant skills
+5. AI ASSESSMENT SCORE (0-100):
+
+Evaluate the profile broadly. Give a score from 0 to 100 based on:
+* Impact (metrics, results, scale)
+* Technology match for TARGET ROLE
+* Content density (too short = lower score)
+* Tone consistency
+
+CRITICAL: Do NOT always return 50. Be critical. A weak profile should get 10-30. A great one 80-95.
 
 ---
 
