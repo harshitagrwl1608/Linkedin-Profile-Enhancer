@@ -62,6 +62,9 @@ app.use((_req, res) => res.status(404).json({ success: false, error: 'Route not 
 // Global error handler
 app.use((err, _req, res, _next) => {
   console.error('[ERROR]', err.message);
+  if (err.status === 429 && err.message.includes('AI service busy')) {
+    return res.status(429).json({ error: err.message });
+  }
   res.status(err.status || 500).json({ success: false, error: err.message || 'Internal server error.' });
 });
 

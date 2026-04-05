@@ -86,7 +86,11 @@ document.getElementById('optimizerForm').addEventListener('submit', async (e) =>
     lastRawResponse = JSON.stringify(data, null, 2);
     renderResults(data, targetRole);
   } catch (err) {
-    showError(err.message || 'Backend error. Make sure the server is running on localhost:5000.');
+    if (err.fallbackData) {
+      showErrorWithFallback(err.message, err);
+    } else {
+      showError(err.message || 'Backend error. Make sure the server is running on localhost:5000.');
+    }
   } finally {
     setLoading(false);
   }
@@ -102,6 +106,12 @@ async function callBackend(profileText, targetRole, tone) {
 
   const json = await res.json();
   if (!res.ok || !json.success) {
+    if (res.status === 429 && json.fallbackData) {
+      const err = new Error(json.error || 'AI service busy due to server limits exhausted.');
+      err.fallbackData = json.fallbackData;
+      err.staticData = json.staticData;
+      throw err;
+    }
     throw new Error(json.errors?.[0]?.msg || json.error || `HTTP ${res.status}`);
   }
 
@@ -656,6 +666,78 @@ function showError(msg) {
 
 function hideError() {
   document.getElementById('errorBanner').hidden = true;
+  const fallbackBtnWrap = document.getElementById('fallbackBtnWrapper');
+  if (fallbackBtnWrap) fallbackBtnWrap.remove();
+}
+
+function showErrorWithFallback(msg, errData) {
+  showError(msg);
+  const banner = document.getElementById('errorBanner');
+  let fallbackBtnWrap = document.getElementById('fallbackBtnWrapper');
+  if (!fallbackBtnWrap) {
+    fallbackBtnWrap = document.createElement('div');
+    fallbackBtnWrap.id = 'fallbackBtnWrapper';
+    fallbackBtnWrap.style.marginTop = '10px';
+    banner.appendChild(fallbackBtnWrap);
+  }
+  fallbackBtnWrap.innerHTML = `
+    <button id="viewFallbackBtn" style="background:var(--accent);color:white;border:none;padding:6px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.85rem">
+      View Basic Fallback Profile
+    </button>
+  `;
+  document.getElementById('viewFallbackBtn').addEventListener('click', () => {
+    hideError();
+    renderFallbackData(errData);
+  });
+}
+
+function renderFallbackData(errData) {
+  const fbd = errData.fallbackData;
+  const sd = errData.staticData || {};
+
+  const mappedData = {
+    overallScore: sd.overallScore || 0,
+    visibilityScore: sd.visibilityScore || 0,
+    rankingChance: sd.rankingChance || '—',
+    evaluation: {
+      summary: sd.evaluation?.summary || fbd.note,
+      strengths: sd.evaluation?.strengths || [],
+      weakSections: sd.evaluation?.weakSections || [],
+      missingKeywords: sd.evaluation?.missingKeywords || []
+    },
+    rewrite: {
+      headlineCorporate: fbd.basic_rewrite.headline,
+      headlineStartup: fbd.basic_rewrite.headline,
+      headlineFAANG: fbd.basic_rewrite.headline,
+      aboutSection: fbd.basic_rewrite.about,
+      experienceRewrite: [],
+      projectsRewrite: [],
+      finalProfile: {
+        headline: fbd.basic_rewrite.headline,
+        about: fbd.basic_rewrite.about,
+        experience: [],
+        projects: []
+      }
+    },
+    keywords: {
+      present: sd.keywords?.present || [],
+      missing: sd.keywords?.missing || [],
+      suggested: sd.keywords?.suggested || []
+    },
+    benchmark: sd.benchmark || {},
+    recruiterSim: sd.recruiterSim || {},
+    aiAssessment: {
+      score: sd.overallScore || 0,
+      diagnosis: { summary: fbd.note, criticalIssues: fbd.suggestions, quickWins: [] },
+      skills: { recommended: sd.keywords?.missing || [] },
+      keywordOptimization: { addToAbout: fbd.suggestions },
+      recruiterBoostTips: []
+    },
+    actionPlan: sd.actionPlan || []
+  };
+
+  lastRawResponse = JSON.stringify(mappedData, null, 2);
+  renderResults(mappedData, "Fallback Profile");
 }
 
 // ===== Copy snippet button styles (injected) =====

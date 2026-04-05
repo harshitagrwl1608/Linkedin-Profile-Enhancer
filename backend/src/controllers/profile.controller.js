@@ -119,6 +119,17 @@ async function enhance(req, res, next) {
       }
     });
   } catch (err) {
+    if (err.status === 429) {
+      const { targetRole, profileText } = req.body;
+      const roleSlug = normalizeRole(targetRole);
+      const parsed = parseProfile(profileText);
+      const role = ROLES[roleSlug];
+      return res.status(429).json({
+        success: false,
+        error: "AI failed because of server limit exhausted",
+        fallbackData: buildBasicFallbackData(roleSlug, parsed, role)
+      });
+    }
     next(err);
   }
 }
@@ -168,6 +179,42 @@ async function fullReport(req, res, next) {
       });
     } catch (aiErr) {
       console.error(`[ERROR] AI enhancement failed for role ${roleSlug}:`, aiErr.message);
+      if (aiErr.status === 429) {
+        return res.status(429).json({
+          success: false,
+          error: "AI failed because of server limit exhausted",
+          fallbackData: buildBasicFallbackData(roleSlug, parsed, role),
+          staticData: {
+             overallScore: overall,
+             visibilityScore,
+             rankingChance: recResult.rankingChance.split(' — ')[0],
+             evaluation: {
+               summary: buildEvalSummary(overall, parsed),
+               strengths: buildStrengths(parsed, missingKeywords, role),
+               weakSections: weakAreas,
+               missingKeywords
+             },
+             keywords: {
+               present: parsed.skills,
+               missing: missingKeywords,
+               suggested: role.niceToHaveKeywords.slice(0, 12)
+             },
+             benchmark: {
+               percentile: bmResult.percentile,
+               gaps: bmResult.gaps,
+               topCandidateTraits: bmResult.topCandidateTraits
+             },
+             recruiterSim: {
+               visibilityScore: recResult.visibilityScore,
+               rankingChance: recResult.rankingChance,
+               searchQuery: recResult.searchQuery,
+               appearInSearch: recResult.appearInSearch,
+               improvements: recResult.improvements
+             },
+             actionPlan: buildFallbackActionPlan(missingKeywords, weakAreas, bmResult.gaps)
+          }
+        });
+      }
       aiResult = buildFallbackAIResult(roleSlug, parsed, role, overall);
     }
 
@@ -274,6 +321,22 @@ function buildFallbackActionPlan(missingKeywords, weakAreas, gaps) {
   if (gaps.some(g => g.area === 'Projects')) steps.push({ step: 4, title: 'Add projects', description: 'Add 2 GitHub projects with live links, tech stack, and measurable outcomes.', priority: 'medium', impact: 'Compensates for experience gaps.' });
   steps.push({ step: steps.length + 1, title: 'Rewrite About section', description: 'Use a story-driven format: who you are → what you build → CTA.', priority: 'medium', impact: 'About section is the first thing recruiters read.' });
   return steps;
+}
+
+function buildBasicFallbackData(roleSlug, parsed, role) {
+  return {
+    mode: "fallback",
+    note: "Generated without full AI analysis due to server limits",
+    suggestions: [
+      "Add more details to your About section",
+      "Include relevant keywords for your role",
+      "Add measurable achievements where possible"
+    ],
+    basic_rewrite: {
+      headline: `${role.displayName} | ${parsed.skills.slice(0,3).join(' · ')}`,
+      about: `Experienced ${role.displayName} skilled in ${parsed.skills.slice(0,5).join(', ')}. Passionate about building robust software.`
+    }
+  };
 }
 
 function buildFallbackAIResult(roleSlug, parsed, role, baseScore = 0) {
