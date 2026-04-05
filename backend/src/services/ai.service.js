@@ -67,7 +67,7 @@ function delay(ms) {
 // 3. callGemini(prompt)
 async function callGemini(prompt) {
   let attempts = 0;
-  const maxRetries = 2;
+  const maxRetries = keyManager.entries.length;
 
   while (attempts < maxRetries) {
       // Add 1 second delay before EVERY API call
@@ -105,14 +105,15 @@ async function callGemini(prompt) {
         attempts++;
         const status = error.response ? error.response.status : null;
 
-        // RETRY LOGIC (ONLY FOR 429)
         if (status === 429) {
           keyManager.markRateLimited(apiKey);
-          console.warn(`[WARN] 429 Rate Limit hit. Retrying with next available API key. (${attempts}/${maxRetries} attempts)`);
+        }
+
+        if (attempts < maxRetries) {
+          console.warn(`[WARN] AI API Error (${status || error.message}). Retrying with next available API key. (${attempts}/${maxRetries} attempts)`);
           await delay(1000);
           continue;
         } else {
-          // Do NOT retry for other errors
           throw new Error(`Gemini API Error: ${error.message}`);
         }
       }
