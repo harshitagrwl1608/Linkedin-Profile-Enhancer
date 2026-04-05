@@ -139,8 +139,8 @@ function parseResponse(text) {
   if (!parsed.scores || typeof parsed.scores !== 'object') {
     throw new Error('Validation Error: Missing "scores" object.');
   }
-  if (!parsed.improvements || !parsed.improvements.professional) {
-    throw new Error('Validation Error: Missing "improvements" data.');
+  if (!parsed.rewrite || typeof parsed.rewrite !== 'object') {
+    throw new Error('Validation Error: Missing "rewrite" data.');
   }
 
   return parsed;
@@ -148,103 +148,152 @@ function parseResponse(text) {
 
 // 5. generateProfile(role, profileText, tone)
 async function generateProfile(role, profileText, tone) {
-  const prompt = `You are an expert LinkedIn profile optimizer, recruiter, and ATS evaluator.
+  const prompt = `You are a strict LinkedIn profile analyzer and optimizer.
 
-Your task is to analyze and improve a LinkedIn profile with HIGH precision and STRUCTURED output.
+Your job is to analyze and improve a LinkedIn profile WITHOUT inventing any information.DON't INVENT anything...just predict what should be
 
-IMPORTANT RULES:
-- Return ONLY valid JSON (no markdown, no explanations, no extra text)
-- Maintain strict structure
-- Do NOT include placeholders like "..." or vague text
-- Be specific, professional, and results-driven
+========================
+🚨 STRICT RULES (MANDATORY)
+========================
+1. NEVER invent:
+   - experience
+   - projects
+   - metrics (numbers, %, users, etc.)
+   - technologies not mentioned in input
 
-INPUT:
-ROLE: ${role}
-PROFILE CONTENT:
-${profileText}
+2. If something is missing:
+   - write: "Not provided"
+   - or use: "[Add metric here]"
 
-TASKS:
+3. Be realistic:
+   - weak input → low scores
+   - do NOT inflate
 
-1. ANALYZE PROFILE
+4. Output MUST be valid JSON ONLY
+   - no explanation
+   - no markdown
+   - no extra text
+
+5. If you break JSON format → response is INVALID
+
+========================
+INPUT
+========================
+Target Role: \${role}
+
+Profile Content:
+\${profileText}
+
+========================
+TASKS
+========================
+
+1. PROFILE ANALYSIS
 Evaluate:
 - clarity
-- keyword strength
-- impact (metrics, results)
-- ATS optimization
-- recruiter appeal
+- completeness
+- keyword relevance for target role
+- presence of measurable impact
 
-2. GENERATE SCORES (0-100)
-Scores must be realistic and justified:
-- overall_score
-- keyword_score
-- impact_score
-- clarity_score
-- ats_score
+---
 
-3. PROVIDE SCORE REASONS
-Give short, specific reasons (NOT generic)
+2. SCORING (0–100)
 
-4. IMPROVE PROFILE (MULTIPLE TONES)
-Generate:
-- professional_version
-- technical_version
-- faang_level_version
+Return:
+- overall
+- keyword
+- clarity
+- completeness
 
-Each should include:
+Rules:
+- Very short input → score below 40
+- No keywords → keyword score below 30
+- No metrics → reduce overall score
+
+---
+
+3. TOP ISSUES (max 5)
+
+Each issue must include:
+- issue
+- why_it_matters
+- fix
+
+Be specific, not generic.
+
+---
+
+4. SAFE REWRITE (NO HALLUCINATION)
+
+ONLY improve wording of given content.
+
+Allowed:
+- better phrasing
+- structure improvement
+
+NOT allowed:
+- adding fake achievements
+- adding fake tools
+- adding fake numbers
+
+Use:
+"[Add metric here]" where needed
+
+Return:
 - headline
-- about (bullet points)
-- experience (bullet points with impact verbs + metrics)
+- about (2–4 bullet points)
+- experience (2–4 bullet points)
 
-5. RECRUITER SIMULATION
-Act like a recruiter:
-- boolean_search_queries (3)
-- missing_keywords (list)
-- strengths (list)
-- weaknesses (list)
-- hiring_signal (Strong / Medium / Weak with reason)
+---
 
-OUTPUT FORMAT (STRICT JSON):
+5. KEYWORDS
+
+Return:
+- present_keywords (from input only)
+- missing_keywords (based on target role)
+
+---
+
+6. RECRUITER VIEW
+
+Return:
+- search_queries (2 realistic queries)
+- visibility (Low / Medium / High)
+- reason (short)
+
+---
+
+========================
+OUTPUT FORMAT (STRICT JSON)
+========================
 
 {
   "scores": {
-    "overall_score": 0,
-    "keyword_score": 0,
-    "impact_score": 0,
-    "clarity_score": 0,
-    "ats_score": 0
+    "overall": 0,
+    "keyword": 0,
+    "clarity": 0,
+    "completeness": 0
   },
-  "score_reasons": {
-    "keyword": "",
-    "impact": "",
-    "clarity": "",
-    "ats": ""
-  },
-  "improvements": {
-    "professional": {
-      "headline": "",
-      "about": [],
-      "experience": []
-    },
-    "technical": {
-      "headline": "",
-      "about": [],
-      "experience": []
-    },
-    "faang": {
-      "headline": "",
-      "about": [],
-      "experience": []
+  "issues": [
+    {
+      "issue": "",
+      "why_it_matters": "",
+      "fix": ""
     }
+  ],
+  "rewrite": {
+    "headline": "",
+    "about": [],
+    "experience": []
   },
-  "recruiter_insights": {
-    "boolean_search_queries": [],
-    "missing_keywords": [],
-    "strengths": [],
-    "weaknesses": [],
-    "hiring_signal": {
-      "level": "",
-      "reason": ""
-    }
+  "keywords": {
+    "present": [],
+    "missing": []
+  },
+  "recruiter_view": {
+    "search_queries": [],
+    "visibility": "",
+    "reason": ""
   }
 }`;
 

@@ -81,47 +81,38 @@ async function enhance(req, res, next) {
       weakAreas
     });
 
-    let mappedTone = 'professional';
-    if (tone === 'technical') mappedTone = 'technical';
-    else if (tone === 'faang' || tone === 'confident') mappedTone = 'faang';
-    
-    const imps = aiResult && aiResult.improvements ? aiResult.improvements : {};
-    const getImp = (t) => imps[t] || {};
-    const profImp = getImp('professional');
-    const techImp = getImp('technical');
-    const faangImp = getImp('faang');
-    const improvement = getImp(mappedTone).headline ? getImp(mappedTone) : profImp;
-
+    const rewrite = aiResult && aiResult.rewrite ? aiResult.rewrite : {};
     const scores = aiResult && aiResult.scores ? aiResult.scores : {};
-    const ri = aiResult && aiResult.recruiter_insights ? aiResult.recruiter_insights : {};
-    const hs = ri.hiring_signal || {};
+    const kw = aiResult && aiResult.keywords ? aiResult.keywords : {};
+    const rv = aiResult && aiResult.recruiter_view ? aiResult.recruiter_view : {};
+    const issues = aiResult && aiResult.issues ? aiResult.issues : [];
 
     res.json({
       success: true,
       data: {
         rewrite: {
-          headlineCorporate  : profImp.headline || '',
-          headlineStartup    : techImp.headline || '',
-          headlineFAANG      : faangImp.headline || '',
-          aboutSection       : Array.isArray(improvement.about) ? improvement.about.join('\n') : (improvement.about || ''),
-          experienceRewrite  : improvement.experience ? improvement.experience.map(b => ({ title: 'Experience', bullets: [b] })) : [],
+          headlineCorporate  : rewrite.headline || '',
+          headlineStartup    : rewrite.headline || '',
+          headlineFAANG      : rewrite.headline || '',
+          aboutSection       : Array.isArray(rewrite.about) ? rewrite.about.join('\n') : (rewrite.about || ''),
+          experienceRewrite  : rewrite.experience ? rewrite.experience.map(b => ({ title: 'Experience', bullets: [b] })) : [],
           projectsRewrite    : [],
           finalProfile       : {
-            headline: improvement.headline,
-            about: Array.isArray(improvement.about) ? improvement.about.join('\n') : improvement.about,
-            experience: improvement.experience || [],
+            headline: rewrite.headline,
+            about: Array.isArray(rewrite.about) ? rewrite.about.join('\n') : rewrite.about,
+            experience: rewrite.experience || [],
             projects: []
           }
         },
         aiAssessment: {
-          score              : scores.overall_score || 0,
+          score              : scores.overall || 0,
           diagnosis          : { 
-            summary: hs.reason || "Transformed profile generated successfully.", 
-            criticalIssues: ri.weaknesses || [], 
-            quickWins: ri.strengths || [] 
+            summary: rv.reason || "Transformed profile generated successfully.", 
+            criticalIssues: issues.map(i => i.issue) || [], 
+            quickWins: [] 
           },
-          skills             : { recommended: ri.missing_keywords || [] },
-          keywordOptimization: { addToAbout: ri.missing_keywords || [] },
+          skills             : { recommended: kw.missing || [] },
+          keywordOptimization: { addToAbout: kw.missing || [] },
           recruiterBoostTips : []
         },
         actionPlan: []
@@ -182,20 +173,11 @@ async function fullReport(req, res, next) {
 
     const rankingChance = recResult.rankingChance.split(' — ')[0];
 
-    let mappedTone = 'professional';
-    if (tone === 'technical') mappedTone = 'technical';
-    else if (tone === 'faang' || tone === 'confident') mappedTone = 'faang';
-
-    const imps = aiResult && aiResult.improvements ? aiResult.improvements : {};
-    const getImp = (t) => imps[t] || {};
-    const profImp = getImp('professional');
-    const techImp = getImp('technical');
-    const faangImp = getImp('faang');
-    const improvement = getImp(mappedTone).headline ? getImp(mappedTone) : profImp;
-
+    const rewrite = aiResult && aiResult.rewrite ? aiResult.rewrite : {};
     const scores = aiResult && aiResult.scores ? aiResult.scores : {};
-    const ri = aiResult && aiResult.recruiter_insights ? aiResult.recruiter_insights : {};
-    const hs = ri.hiring_signal || {};
+    const kw = aiResult && aiResult.keywords ? aiResult.keywords : {};
+    const rv = aiResult && aiResult.recruiter_view ? aiResult.recruiter_view : {};
+    const issues = aiResult && aiResult.issues ? aiResult.issues : [];
 
     res.json({
       success: true,
@@ -210,34 +192,34 @@ async function fullReport(req, res, next) {
           missingKeywords
         },
         rewrite: {
-          headlineCorporate  : profImp.headline || `${role.displayName} | ${role.idealProfile.skills.slice(0,2).join(' · ')}`,
-          headlineStartup    : techImp.headline || `Building with ${role.idealProfile.skills[0]} | ${role.displayName}`,
-          headlineFAANG      : faangImp.headline || `${role.displayName} — ${role.idealProfile.skills.slice(0,3).join(', ')}`,
-          aboutSection       : Array.isArray(improvement.about) ? improvement.about.join('\n') : (improvement.about || ''),
-          experienceRewrite  : improvement.experience ? improvement.experience.map(b => ({ title: 'Experience', bullets: [b] })) : [],
+          headlineCorporate  : rewrite.headline || `${role.displayName} | ${role.idealProfile.skills.slice(0,2).join(' · ')}`,
+          headlineStartup    : rewrite.headline || `Building with ${role.idealProfile.skills[0]} | ${role.displayName}`,
+          headlineFAANG      : rewrite.headline || `${role.displayName} — ${role.idealProfile.skills.slice(0,3).join(', ')}`,
+          aboutSection       : Array.isArray(rewrite.about) ? rewrite.about.join('\n') : (rewrite.about || ''),
+          experienceRewrite  : rewrite.experience ? rewrite.experience.map(b => ({ title: 'Experience', bullets: [b] })) : [],
           projectsRewrite    : [],
           finalProfile       : {
-            headline: improvement.headline,
-            about: Array.isArray(improvement.about) ? improvement.about.join('\n') : improvement.about,
-            experience: improvement.experience || [],
+            headline: rewrite.headline,
+            about: Array.isArray(rewrite.about) ? rewrite.about.join('\n') : rewrite.about,
+            experience: rewrite.experience || [],
             projects: []
           }
         },
         aiAssessment: {
-          score              : scores.overall_score || overall,
+          score              : scores.overall || overall,
           diagnosis          : { 
-            summary: hs.reason || "Transformed profile generated successfully.", 
-            criticalIssues: ri.weaknesses || [], 
-            quickWins: ri.strengths || [] 
+            summary: rv.reason || "Transformed profile generated successfully.", 
+            criticalIssues: issues.map(i => i.issue) || [], 
+            quickWins: [] 
           },
-          skills             : { recommended: ri.missing_keywords || [] },
-          keywordOptimization: { addToAbout: ri.missing_keywords || [] },
+          skills             : { recommended: kw.missing || [] },
+          keywordOptimization: { addToAbout: kw.missing || [] },
           recruiterBoostTips : []
         },
         keywords: {
           present  : parsed.skills,
           missing  : missingKeywords,
-          suggested: (ri.missing_keywords && ri.missing_keywords.length > 0) ? ri.missing_keywords : role.niceToHaveKeywords.slice(0, 12)
+          suggested: (kw.missing && kw.missing.length > 0) ? kw.missing : role.niceToHaveKeywords.slice(0, 12)
         },
         benchmark: {
           percentile        : bmResult.percentile,
@@ -297,33 +279,30 @@ function buildFallbackActionPlan(missingKeywords, weakAreas, gaps) {
 function buildFallbackAIResult(roleSlug, parsed, role, baseScore = 0) {
   return {
     scores: {
-      overall_score: baseScore,
-      keyword_score: baseScore,
-      impact_score: baseScore,
-      clarity_score: baseScore,
-      ats_score: baseScore
+      overall: baseScore,
+      keyword: baseScore,
+      clarity: baseScore,
+      completeness: baseScore
     },
-    score_reasons: { keyword: '', impact: '', clarity: '', ats: '' },
-    improvements: {
-      professional: {
-        headline: `${role.displayName} | ${parsed.skills.slice(0,3).join(' · ')}`,
-        about: [`Experienced ${role.displayName} skilled in ${parsed.skills.slice(0,5).join(', ')}. Passionate about building scalable, high-quality software.`],
-        experience: [
-          "Built resilient backend services handling high-volume traffic using Node.js.",
-          "Optimized database queries in MongoDB, reducing average latency by 25%.",
-          "Designed secure REST APIs supporting 5,000+ daily active users.",
-          "Implemented comprehensive unit testing, achieving 90% code coverage."
-        ]
-      },
-      technical: { headline: '', about: [], experience: [] },
-      faang: { headline: '', about: [], experience: [] }
+    issues: [],
+    rewrite: {
+      headline: `${role.displayName} | ${parsed.skills.slice(0,3).join(' · ')}`,
+      about: [`Experienced ${role.displayName} skilled in ${parsed.skills.slice(0,5).join(', ')}. Passionate about building scalable, high-quality software.`],
+      experience: [
+        "Built resilient backend services handling high-volume traffic using Node.js.",
+        "Optimized database queries in MongoDB, reducing average latency by 25%.",
+        "Designed secure REST APIs supporting 5,000+ daily active users.",
+        "Implemented comprehensive unit testing, achieving 90% code coverage."
+      ]
     },
-    recruiter_insights: {
-      boolean_search_queries: [],
-      missing_keywords: role.niceToHaveKeywords.slice(0, 8),
-      strengths: [],
-      weaknesses: [],
-      hiring_signal: { level: 'Medium', reason: 'Fallback generated.' }
+    keywords: {
+      present: parsed.skills || [],
+      missing: role.niceToHaveKeywords.slice(0, 8)
+    },
+    recruiter_view: {
+      search_queries: [],
+      visibility: "Low",
+      reason: "Fallback generated."
     }
   };
 }
