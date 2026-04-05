@@ -136,17 +136,11 @@ function parseResponse(text) {
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('Validation Error: Parsed response is not a valid JSON object.');
   }
-  if (!parsed.headline || typeof parsed.headline !== 'string') {
-    throw new Error('Validation Error: Missing or invalid "headline" field.');
+  if (!parsed.scores || typeof parsed.scores !== 'object') {
+    throw new Error('Validation Error: Missing "scores" object.');
   }
-  if (!parsed.about || typeof parsed.about !== 'string') {
-    throw new Error('Validation Error: Missing or invalid "about" field.');
-  }
-  if (!Array.isArray(parsed.experience) || parsed.experience.length !== 4) {
-    throw new Error(`Validation Error: "experience" array must be exactly 4 strings (Got ${parsed.experience ? parsed.experience.length : 'unknown'}).`);
-  }
-  if (!Array.isArray(parsed.projects) || parsed.projects.length !== 2) {
-    throw new Error(`Validation Error: "projects" array must be exactly 2 strings (Got ${parsed.projects ? parsed.projects.length : 'unknown'}).`);
+  if (!parsed.improvements || !parsed.improvements.professional) {
+    throw new Error('Validation Error: Missing "improvements" data.');
   }
 
   return parsed;
@@ -154,139 +148,105 @@ function parseResponse(text) {
 
 // 5. generateProfile(role, profileText, tone)
 async function generateProfile(role, profileText, tone) {
-  const prompt = `You are a top-tier technical recruiter.
+  const prompt = `You are an expert LinkedIn profile optimizer, recruiter, and ATS evaluator.
 
-Your task is to transform a weak LinkedIn profile into a strong, hireable candidate profile tailored to the TARGET ROLE and SELECTED TONE.
+Your task is to analyze and improve a LinkedIn profile with HIGH precision and STRUCTURED output.
 
----
+IMPORTANT RULES:
+- Return ONLY valid JSON (no markdown, no explanations, no extra text)
+- Maintain strict structure
+- Do NOT include placeholders like "..." or vague text
+- Be specific, professional, and results-driven
 
-IMPORTANT:
+INPUT:
+ROLE: ${role}
+PROFILE CONTENT:
+${profileText}
 
-The input may be weak or incomplete.
+TASKS:
 
-You MUST:
+1. ANALYZE PROFILE
+Evaluate:
+- clarity
+- keyword strength
+- impact (metrics, results)
+- ATS optimization
+- recruiter appeal
 
-* Infer realistic experience
-* Upgrade the candidate to a strong entry-level professional
-* Make them appear ready for hiring
+2. GENERATE SCORES (0-100)
+Scores must be realistic and justified:
+- overall_score
+- keyword_score
+- impact_score
+- clarity_score
+- ats_score
 
----
+3. PROVIDE SCORE REASONS
+Give short, specific reasons (NOT generic)
 
-STRICT RULES:
+4. IMPROVE PROFILE (MULTIPLE TONES)
+Generate:
+- professional_version
+- technical_version
+- faang_level_version
 
-* Output ONLY valid JSON
-* No explanations, markdown, or comments
-* No placeholders
-* Do NOT use generic words:
-  hardworking, passionate, motivated, experienced
+Each should include:
+- headline
+- about (bullet points)
+- experience (bullet points with impact verbs + metrics)
 
----
+5. RECRUITER SIMULATION
+Act like a recruiter:
+- boolean_search_queries (3)
+- missing_keywords (list)
+- strengths (list)
+- weaknesses (list)
+- hiring_signal (Strong / Medium / Weak with reason)
 
-TONE MODE (MANDATORY):
-
-Generate a COMPLETELY NEW version for the SELECTED TONE.
-
-Each tone must follow a different writing style:
-
-* PROFESSIONAL → clean, formal, recruiter-friendly
-* BOLD → strong, confident, impact-driven
-* TECHNICAL → detailed, tools & systems focused
-* FRIENDLY → natural, slightly conversational
-* FAANG → sharp, high-impact, premium
-* HUMBLE → simple, honest, beginner-level
-
-CRITICAL:
-
-* Do NOT reuse sentences across tones
-* Rewrite wording completely
-* Change sentence structure and vocabulary
-
----
-
-ROLE ADAPTATION:
-
-Adapt content to TARGET ROLE using relevant technologies.
-
----
-
-CONTENT REQUIREMENTS:
-
-1. HEADLINE:
-   Format: ROLE | Tech1, Tech2, Tech3
-
----
-
-2. ABOUT:
-
-* 110–140 words
-* Start directly with what the person builds
-* Include work, tools, problems, focus
-
----
-
-3. EXPERIENCE:
-   Exactly 4 bullets
-
-Each:
-
-* Starts with Built / Designed / Implemented / Optimized / Developed
-* Includes number + technology
-
----
-
-4. PROJECTS:
-   Exactly 2
-
-Each:
-
-* What was built
-* Tech stack
-* Measurable impact
-
----
-
-5. AI ASSESSMENT SCORE (0-100):
-
-Evaluate the profile broadly. Give a score from 0 to 100 based on:
-* Impact (metrics, results, scale)
-* Technology match for TARGET ROLE
-* Content density (too short = lower score)
-* Tone consistency
-
-CRITICAL: Do NOT always return 50. Be critical. A weak profile should get 10-30. A great one 80-95.
-
----
-
-OUTPUT FORMAT:
+OUTPUT FORMAT (STRICT JSON):
 
 {
-"score": number,
-"headline": "string",
-"about": "string",
-"experience": ["string","string","string","string"],
-"projects": ["string","string"],
-"skills": ["string"]
-}
-
----
-
-FINAL VALIDATION:
-
-* JSON valid
-* 4 experience bullets
-* 2 projects
-* Tone clearly visible
-
----
-
-TARGET ROLE:
-\${role}
-
-SELECTED TONE:
-\${tone}
-
-INPUT PROFILE:
-\${profileText}`;
+  "scores": {
+    "overall_score": 0,
+    "keyword_score": 0,
+    "impact_score": 0,
+    "clarity_score": 0,
+    "ats_score": 0
+  },
+  "score_reasons": {
+    "keyword": "",
+    "impact": "",
+    "clarity": "",
+    "ats": ""
+  },
+  "improvements": {
+    "professional": {
+      "headline": "",
+      "about": [],
+      "experience": []
+    },
+    "technical": {
+      "headline": "",
+      "about": [],
+      "experience": []
+    },
+    "faang": {
+      "headline": "",
+      "about": [],
+      "experience": []
+    }
+  },
+  "recruiter_insights": {
+    "boolean_search_queries": [],
+    "missing_keywords": [],
+    "strengths": [],
+    "weaknesses": [],
+    "hiring_signal": {
+      "level": "",
+      "reason": ""
+    }
+  }
+}`;
 
   const rawText = await callGemini(prompt);
   return parseResponse(rawText);
