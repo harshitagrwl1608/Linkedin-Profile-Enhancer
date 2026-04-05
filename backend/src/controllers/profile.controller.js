@@ -91,14 +91,14 @@ async function enhance(req, res, next) {
       success: true,
       data: {
         rewrite: {
-          headlineCorporate  : rewrite.headline || '',
-          headlineStartup    : rewrite.headline || '',
-          headlineFAANG      : rewrite.headline || '',
+          headlineCorporate  : Array.isArray(rewrite.headline) ? rewrite.headline[0] : (rewrite.headline || ''),
+          headlineStartup    : Array.isArray(rewrite.headline) ? rewrite.headline[1] : (rewrite.headline || ''),
+          headlineFAANG      : Array.isArray(rewrite.headline) ? rewrite.headline[2] : (rewrite.headline || ''),
           aboutSection       : Array.isArray(rewrite.about) ? rewrite.about.join('\n') : (rewrite.about || ''),
           experienceRewrite  : rewrite.experience ? rewrite.experience.map(b => ({ title: 'Experience', bullets: [b] })) : [],
           projectsRewrite    : [],
           finalProfile       : {
-            headline: rewrite.headline,
+            headline: Array.isArray(rewrite.headline) ? rewrite.headline[0] : rewrite.headline,
             about: Array.isArray(rewrite.about) ? rewrite.about.join('\n') : rewrite.about,
             experience: rewrite.experience || [],
             projects: []
@@ -233,14 +233,14 @@ async function fullReport(req, res, next) {
           missingKeywords
         },
         rewrite: {
-          headlineCorporate  : rewrite.headline || `${role.displayName} | ${role.idealProfile.skills.slice(0,2).join(' · ')}`,
-          headlineStartup    : rewrite.headline || `Building with ${role.idealProfile.skills[0]} | ${role.displayName}`,
-          headlineFAANG      : rewrite.headline || `${role.displayName} — ${role.idealProfile.skills.slice(0,3).join(', ')}`,
+          headlineCorporate  : (Array.isArray(rewrite.headline) && rewrite.headline[0]) ? rewrite.headline[0] : (typeof rewrite.headline === 'string' && rewrite.headline ? rewrite.headline : `${role.displayName} | ${role.idealProfile.skills.slice(0,2).join(' · ')}`),
+          headlineStartup    : (Array.isArray(rewrite.headline) && rewrite.headline[1]) ? rewrite.headline[1] : (typeof rewrite.headline === 'string' && rewrite.headline ? rewrite.headline : `Building with ${role.idealProfile.skills[0]} | ${role.displayName}`),
+          headlineFAANG      : (Array.isArray(rewrite.headline) && rewrite.headline[2]) ? rewrite.headline[2] : (typeof rewrite.headline === 'string' && rewrite.headline ? rewrite.headline : `${role.displayName} — ${role.idealProfile.skills.slice(0,3).join(', ')}`),
           aboutSection       : Array.isArray(rewrite.about) ? rewrite.about.join('\n') : (rewrite.about || ''),
           experienceRewrite  : rewrite.experience ? rewrite.experience.map(b => ({ title: 'Experience', bullets: [b] })) : [],
           projectsRewrite    : [],
           finalProfile       : {
-            headline: rewrite.headline,
+            headline: Array.isArray(rewrite.headline) ? rewrite.headline[0] : rewrite.headline,
             about: Array.isArray(rewrite.about) ? rewrite.about.join('\n') : rewrite.about,
             experience: rewrite.experience || [],
             projects: []
