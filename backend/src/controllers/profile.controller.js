@@ -119,18 +119,15 @@ async function enhance(req, res, next) {
       }
     });
   } catch (err) {
-    if (err.status === 429) {
-      const { targetRole, profileText } = req.body;
-      const roleSlug = normalizeRole(targetRole);
-      const parsed = parseProfile(profileText);
-      const role = ROLES[roleSlug];
-      return res.status(429).json({
-        success: false,
-        error: "AI failed because of server limit exhausted",
-        fallbackData: buildBasicFallbackData(roleSlug, parsed, role)
-      });
-    }
-    next(err);
+    const { targetRole, profileText } = req.body;
+    const roleSlug = normalizeRole(targetRole);
+    const parsed = parseProfile(profileText);
+    const role = ROLES[roleSlug];
+    return res.status(429).json({
+      success: false,
+      error: "AI failed because of server limit exhausted",
+      fallbackData: buildBasicFallbackData(roleSlug, parsed, role)
+    });
   }
 }
 
@@ -179,43 +176,40 @@ async function fullReport(req, res, next) {
       });
     } catch (aiErr) {
       console.error(`[ERROR] AI enhancement failed for role ${roleSlug}:`, aiErr.message);
-      if (aiErr.status === 429) {
-        return res.status(429).json({
-          success: false,
-          error: "AI failed because of server limit exhausted",
-          fallbackData: buildBasicFallbackData(roleSlug, parsed, role),
-          staticData: {
-             overallScore: overall,
-             visibilityScore,
-             rankingChance: recResult.rankingChance.split(' — ')[0],
-             evaluation: {
-               summary: buildEvalSummary(overall, parsed),
-               strengths: buildStrengths(parsed, missingKeywords, role),
-               weakSections: weakAreas,
-               missingKeywords
-             },
-             keywords: {
-               present: parsed.skills,
-               missing: missingKeywords,
-               suggested: role.niceToHaveKeywords.slice(0, 12)
-             },
-             benchmark: {
-               percentile: bmResult.percentile,
-               gaps: bmResult.gaps,
-               topCandidateTraits: bmResult.topCandidateTraits
-             },
-             recruiterSim: {
-               visibilityScore: recResult.visibilityScore,
-               rankingChance: recResult.rankingChance,
-               searchQuery: recResult.searchQuery,
-               appearInSearch: recResult.appearInSearch,
-               improvements: recResult.improvements
-             },
-             actionPlan: buildFallbackActionPlan(missingKeywords, weakAreas, bmResult.gaps)
-          }
-        });
-      }
-      aiResult = buildFallbackAIResult(roleSlug, parsed, role, overall);
+      return res.status(429).json({
+        success: false,
+        error: "AI failed because of server limit exhausted",
+        fallbackData: buildBasicFallbackData(roleSlug, parsed, role),
+        staticData: {
+           overallScore: overall,
+           visibilityScore,
+           rankingChance: recResult.rankingChance.split(' — ')[0],
+           evaluation: {
+             summary: buildEvalSummary(overall, parsed),
+             strengths: buildStrengths(parsed, missingKeywords, role),
+             weakSections: weakAreas,
+             missingKeywords
+           },
+           keywords: {
+             present: parsed.skills,
+             missing: missingKeywords,
+             suggested: role.niceToHaveKeywords.slice(0, 12)
+           },
+           benchmark: {
+             percentile: bmResult.percentile,
+             gaps: bmResult.gaps,
+             topCandidateTraits: bmResult.topCandidateTraits
+           },
+           recruiterSim: {
+             visibilityScore: recResult.visibilityScore,
+             rankingChance: recResult.rankingChance,
+             searchQuery: recResult.searchQuery,
+             appearInSearch: recResult.appearInSearch,
+             improvements: recResult.improvements
+           },
+           actionPlan: buildFallbackActionPlan(missingKeywords, weakAreas, bmResult.gaps)
+        }
+      });
     }
 
     const rankingChance = recResult.rankingChance.split(' — ')[0];
