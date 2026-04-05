@@ -15,13 +15,40 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '2mb' }));
 
-// Rate limiting — 60 requests per 15 minutes per IP
+// Rate limiting — Strict: 5 requests per 15 minutes per IP
 const limiter = rateLimit({
   windowMs : 15 * 60 * 1000,
-  max      : 60,
+  max      : 5,
   message  : { success: false, error: 'Too many requests. Please try again later.' }
 });
 app.use('/api', limiter);
+
+// Basic in-memory cache for POST requests to prevent repeated heavy LLM calls
+const crypto = require('crypto');
+const requestCache = new Map();
+
+app.use('/api', (req, res, next) => {
+  if (req.method === 'POST' && req.body) {
+    const hash = crypto.createHash('md5').update(JSON.stringify(req.body)).digest('hex');
+    const cached = requestCache.get(hash);
+    
+    // Cache identical requests for 1 hour
+    if (cached && (Date.now() - cached.timestamp < 3600000)) {
+       return res.json(cached.data);
+    }
+    
+    const originalJson = res.json;
+    res.json = function(data) {
+      if (res.statusCode === 200 && data.success) {
+        // limit cache size to 1000 items to prevent memory leaks
+        if (requestCache.size > 1000) requestCache.clear();
+        requestCache.set(hash, { timestamp: Date.now(), data });
+      }
+      return originalJson.call(this, data);
+    };
+  }
+  next();
+});
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use('/api/profile', profileRoutes);
