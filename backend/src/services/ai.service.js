@@ -151,7 +151,7 @@ You are a strict LinkedIn profile optimizer.
 
 GLOBAL CONTEXT:
 - Role: ${role}
-- Tone: professional, recruiter-focused
+- Tone: ${tone}
 - Keep consistency across all outputs
 
 GLOBAL RULES (apply to ALL responses):
@@ -160,6 +160,7 @@ GLOBAL RULES (apply to ALL responses):
 - Use bullet points where applicable
 - No fluff, no generic statements
 - If data is missing, write "[Add details]"
+- IMPORTANT TONE ENFORCEMENT: The output must strictly reflect the ${tone} tone. Adjust your vocabulary and style based on this direction.
 
 IMPORTANT:
 Your output must be consistent with other sections generated separately.
@@ -298,12 +299,15 @@ Return:
   // STAGE 1: Analysis Call
   // =========================
   const stage1Result = await executeSubtask('analysis', prompts.analysis, inputContext);
+  
+  if (stage1Result.status === "fallback") {
+    const err = new Error('AI service busy. API keys exhausted or not connected.');
+    err.status = 429;
+    throw err;
+  }
+
   const analysisData = stage1Result.data;
   const fallbackIssues = [];
-
-  if (stage1Result.status === "fallback") {
-    fallbackIssues.push({ issue: "Analysis Node Error", why_it_matters: "AI threw an error during analysis", fix: "Using fallback scores" });
-  }
 
   let formattedIssues = "No major issues identified.";
   if (analysisData.issues && analysisData.issues.length > 0) {
@@ -333,11 +337,9 @@ ${formattedIssues}
         const val = item.value;
         results[val.key] = val.data;
         if (val.status === "fallback") {
-          fallbackIssues.push({
-            issue: `Generation Error [${val.key}]`,
-            why_it_matters: `The AI payload threw an error: ${val.error}`,
-            fix: "Loaded safe fallback version for this specific data."
-          });
+          const err = new Error(`AI service failure on subtask: ${val.key}`);
+          err.status = 429;
+          throw err;
         }
     }
   }
